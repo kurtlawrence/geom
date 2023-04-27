@@ -110,11 +110,12 @@ pub fn from_dxf(dxf: &[u8]) -> Result<TriMesh> {
 pub fn to_dxf(mesh: &TriMesh) -> Vec<u8> {
     #[allow(clippy::boxed_local)]
     fn to_face_3d(tri: Tri) -> ::dxf::entities::Face3D {
+        let [p0, p1, p2] = tri;
         ::dxf::entities::Face3D {
-            first_corner: to_dxf_point(tri.0),
-            second_corner: to_dxf_point(tri.1),
-            third_corner: to_dxf_point(tri.2),
-            fourth_corner: to_dxf_point(tri.0),
+            first_corner: to_dxf_point(p0),
+            second_corner: to_dxf_point(p1),
+            third_corner: to_dxf_point(p2),
+            fourth_corner: to_dxf_point(p0),
             ..Default::default()
         }
     }
@@ -152,7 +153,7 @@ fn collect_dxf_face3ds(drawing: &::dxf::Drawing) -> Option<TriMesh> {
                  second_corner: b,
                  third_corner: c,
                  ..
-             }| { Tri::new((from_dxf_point(a), from_dxf_point(b), from_dxf_point(c))) },
+             }| { [from_dxf_point(a), from_dxf_point(b), from_dxf_point(c)] },
         )
         .collect::<TriMesh>();
 
@@ -203,8 +204,7 @@ fn collect_dxf_polyline_polyface_mesh(drawing: &::dxf::Drawing) -> Option<TriMes
         }
 
         tris.into_iter()
-            .map(move |(a, b, c)| (pts[a], pts[b], pts[c]))
-            .map(Tri::new)
+            .map(move |(a, b, c)| [pts[a], pts[b], pts[c]])
     }
 
     let mesh = drawing

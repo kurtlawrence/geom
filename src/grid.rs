@@ -304,12 +304,12 @@ impl Grid {
             sp_inv: f64,
             top: bool,
         ) {
-            let plane = Plane::from(&tri);
+            let plane = Plane::from(tri);
             if plane.is_vertical() {
                 return;
             }
 
-            let (p1, p2, p3) = (tri.0.to_p2(), tri.1.to_p2(), tri.2.to_p2());
+            let [p1, p2, p3] = tri.map(ToPoint2::to_p2);
             let min = p1.min_all(p2).min_all(p3);
             let max = p1.max_all(p2).max_all(p3);
 

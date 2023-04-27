@@ -1,13 +1,12 @@
 use crate::*;
 
 /// Triangle represented by 3 points (A, B, C).
-/// Boxed since 3 points is 72 bytes.
-pub type Tri = Box<(Point3, Point3, Point3)>;
+pub type Tri = [Point3; 3];
 
 impl Aabb for Tri {
     type Space = Point3;
     fn aabb(&self) -> Extents<Self::Space> {
-        Extents::from_iter([self.0, self.1, self.2])
+        Extents::from_iter(*self)
     }
 }
 
@@ -57,16 +56,13 @@ impl TriMesh {
     }
 
     pub fn tris(&self) -> impl ExactSizeIterator<Item = Tri> + '_ {
-        self.triangles
-            .iter()
-            .map(move |&(a, b, c)| {
-                (
-                    self.points[a as usize],
-                    self.points[b as usize],
-                    self.points[c as usize],
-                )
-            })
-            .map(Box::new)
+        self.triangles.iter().map(move |&(a, b, c)| {
+            [
+                self.points[a as usize],
+                self.points[b as usize],
+                self.points[c as usize],
+            ]
+        })
     }
 
     pub fn extend(&mut self, tris: impl Iterator<Item = Tri>) {
@@ -450,7 +446,7 @@ mod extend_trimesh {
             }
         };
 
-        for (a, b, c) in tris.map(|x| *x) {
+        for [a, b, c] in tris {
             let t = (get_or_add(a), get_or_add(b), get_or_add(c));
             triangles.push(t);
         }
@@ -508,7 +504,7 @@ mod contours {
 
     impl From<Tri> for Face {
         fn from(tri: Tri) -> Self {
-            let ([_, _, a], [_, _, b], [_, _, c]) = *tri;
+            let [[_, _, a], [_, _, b], [_, _, c]] = tri;
             let minz = a.min(b).min(c);
             let maxz = a.max(b).max(c);
             Self { minz, maxz, tri }
@@ -525,7 +521,7 @@ mod contours {
         }
 
         // reduce search space (everything > gt does not intersect rl)
-        let tris = faces[..=gt].iter().filter(|f| rl <= f.maxz).map(|x| &x.tri);
+        let tris = faces[..=gt].iter().filter(|f| rl <= f.maxz).map(|x| x.tri);
         let edges = contour_edges(tris, rl);
         let (mut edges, points) = index_edges(edges);
         sort_and_dedup_edges(&mut edges);
@@ -544,14 +540,14 @@ mod contours {
             .collect()
     }
 
-    fn contour_edges<'a, I>(tris: I, rl: f64) -> Vec<Edge3D>
+    fn contour_edges<I>(tris: I, rl: f64) -> Vec<Edge3D>
     where
-        I: Iterator<Item = &'a Tri>,
+        I: Iterator<Item = Tri>,
     {
         tris.filter_map(|t| contour_tri(t, rl)).collect()
     }
 
-    fn contour_tri(tri: &Tri, rl: f64) -> Option<Edge3D> {
+    fn contour_tri(tri: Tri, rl: f64) -> Option<Edge3D> {
         let [s1, s2, d] = split_tri(tri, rl)?;
         let a = point_at_rl(d, s1, rl);
         let b = point_at_rl(d, s2, rl);
@@ -563,9 +559,9 @@ mod contours {
     /// Returns `None` if a split does not work (all points on one side), or if all points are on
     /// the same rl.
     /// Returns `Some([same, same, different])`.
-    fn split_tri(tri: &Tri, rl: f64) -> Option<[Point3; 3]> {
+    fn split_tri(tri: Tri, rl: f64) -> Option<Tri> {
         const T: f64 = 1e-5;
-        let mut arr = [tri.0, tri.1, tri.2];
+        let mut arr = tri;
         if arr.iter().all(|[_, _, z]| (z - rl).abs() < T) {
             return None; // all == rl
         }

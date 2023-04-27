@@ -138,12 +138,13 @@ impl Plane {
     }
 }
 
-impl From<&Tri> for Plane {
-    fn from(tri: &Tri) -> Self {
-        let n = tri.0.scale(-1.0);
-        let a = tri.1.add(n); // p1 - p0
-        let b = tri.2.add(n); // p2 - p0
-        Plane::new(tri.0, xprod(a, b))
+impl From<Tri> for Plane {
+    fn from(tri: Tri) -> Self {
+        let [p0, p1, p2] = tri;
+        let n = p0.scale(-1.0);
+        let a = p1.add(n); // p1 - p0
+        let b = p2.add(n); // p2 - p0
+        Plane::new(p0, xprod(a, b))
     }
 }
 
