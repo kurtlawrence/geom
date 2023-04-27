@@ -4,30 +4,32 @@ version = "0.1.0"
 authors = ["Kurt Lawrence <kurtlawrence92@gmail.com>"]
 edition = "2021"
 
-[lib]
-path = "lib.rs"
+[features]
+default = ["io"]
+io = ["dep:byteorder", "dep:dxf", "dep:log", "dep:nom"]
+
+
 
 [dependencies]
-# workspace
-
-# crates.io
-byteorder = "1"
-dxf = { git = "https://github.com/ixmilia/dxf-rs" }
-log = "0.4"
-nom = "7"
 rayon = "1"
 rustc-hash = "1"
 serde = { version = "1", features = ["derive"] }
 
+# For io
+byteorder = { version = "1", optional = true }
+dxf = { git = "https://github.com/ixmilia/dxf-rs", rev = "00a62846e4d42f854e125964b807b3aaf81fec7e", optional = true }
+log = { version = "0.4", optional = true }
+nom = { version = "7", optional = true }
+
 [dev-dependencies]
 criterion = "0.3"
+quickcheck = "1"
+quickcheck_macros = "1"        
 
 [[bench]]
 name = "benches"
-path = "benches.rs"
 harness = false
 
 [[test]]
 name = "data-interop"
-path = "data/interop-test.rs"
-
+path = "test/interop-test.rs"

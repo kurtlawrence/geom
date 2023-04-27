@@ -9,7 +9,7 @@ fn polygons(c: &mut Criterion) {
                 .copied(),
         )
         .unwrap();
-        b.iter(|| polygon.inside((0.34, 0.578)))
+        b.iter(|| polygon.envelops((0.34, 0.578)))
     });
     c.bench_function("point inside large polygon", |b| {
         let points = (0..100)
@@ -18,7 +18,7 @@ fn polygons(c: &mut Criterion) {
             .chain((0..100).rev().map(|x| (100.0, x as f64)))
             .chain((1..100).rev().map(|x| (x as f64, 0.0)));
         let polygon = Polygon2::new(points).unwrap();
-        b.iter(|| polygon.inside((3.34, 78.578)))
+        b.iter(|| polygon.envelops((3.34, 78.578)))
     });
 }
 
@@ -105,8 +105,8 @@ fn trimeshs(c: &mut Criterion) {
     });
 
     c.bench_function("contours 1m actual", |b| {
-        let t =
-            TriMesh::from_vulcan_00t(&std::fs::read("data/VOID_Simplified.00t").unwrap()).unwrap();
+        let t = io::trimesh::from_vulcan_00t(&std::fs::read("test/VOID_Simplified.00t").unwrap())
+            .unwrap();
         b.iter(|| t.contour(1.0))
     });
 }

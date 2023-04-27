@@ -279,7 +279,7 @@ mod conversion_tests {
 
     fn convert_test(name: &str) {
         println!("TESTING: '{}'", name);
-        let dir = "data/vulcan-tries";
+        let dir = "test/vulcan-tries";
         let i = &std::fs::read(format!("{}/{}.00t", dir, name)).unwrap();
         let exp = std::fs::read(format!("{}/{}-converted.00t", dir, name)).unwrap();
 
