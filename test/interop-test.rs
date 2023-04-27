@@ -117,16 +117,16 @@ fn test_tri_1_00t_import() {
     assert_eq!(t.tri_len(), 1);
     assert_eq!(t.point_len(), 3);
 
-    let mut tris = t.tris().map(|x| *x);
+    let mut tris = t.tris();
 
     // t0
     assert_eq!(
         tris.next(),
-        Some((
+        Some([
             [100.0, 200.0, 0.0],
             [101.0, 200.0, 1.0],
             [101.0, 201.0, 2.0]
-        ))
+        ])
     );
 
     assert_eq!(tris.next(), None);
@@ -159,25 +159,25 @@ fn test_tri_2_00t_import() {
     assert_eq!(t.tri_len(), 2);
     assert_eq!(t.point_len(), 4);
 
-    let mut tris = t.tris().map(|x| *x);
+    let mut tris = t.tris();
 
     // t0
     assert_eq!(
         tris.next(),
-        Some((
+        Some([
             [100.0, 200.0, 0.0],
             [101.0, 200.0, 1.0],
             [101.0, 201.0, 2.0]
-        ))
+        ])
     );
     // t1
     assert_eq!(
         tris.next(),
-        Some((
+        Some([
             [100.0, 200.0, 0.0],
             [101.0, 201.0, 2.0],
             [100.0, 201.0, 3.0],
-        ))
+        ])
     );
 
     assert_eq!(tris.next(), None);
@@ -215,34 +215,34 @@ fn test_tri_3_00t_import() {
     assert_eq!(t.tri_len(), 3);
     assert_eq!(t.point_len(), 7);
 
-    let mut tris = t.tris().map(|x| *x);
+    let mut tris = t.tris();
 
     // t0
     assert_eq!(
         tris.next(),
-        Some((
+        Some([
             [100.0, 200.0, 0.0],
             [101.0, 200.0, 1.0],
             [101.0, 201.0, 2.0]
-        ))
+        ])
     );
     // t1
     assert_eq!(
         tris.next(),
-        Some((
+        Some([
             [100.0, 200.0, 0.0],
             [101.0, 201.0, 2.0],
             [100.0, 201.0, 3.0],
-        ))
+        ])
     );
     // t2
     assert_eq!(
         tris.next(),
-        Some((
+        Some([
             [104.0, 204.0, 10.0],
             [104.0, 205.0, 11.0],
             [105.0, 205.0, 12.0],
-        ))
+        ])
     );
 
     assert_eq!(tris.next(), None);
@@ -270,16 +270,16 @@ fn test_tri_1_dxf_import() {
     assert_eq!(t.tri_len(), 1);
     assert_eq!(t.point_len(), 3);
 
-    let mut tris = t.tris().map(|x| *x);
+    let mut tris = t.tris();
 
     // t0
     assert_eq!(
         tris.next(),
-        Some((
+        Some([
             [100.0, 200.0, 0.0],
             [101.0, 200.0, 1.0],
             [101.0, 201.0, 2.0]
-        ))
+        ])
     );
 
     assert_eq!(tris.next(), None);
@@ -299,25 +299,25 @@ fn test_tri_2_dxf_import() {
     assert_eq!(t.tri_len(), 2);
     assert_eq!(t.point_len(), 4);
 
-    let mut tris = t.tris().map(|x| *x);
+    let mut tris = t.tris();
 
     // t0
     assert_eq!(
         tris.next(),
-        Some((
+        Some([
             [100.0, 200.0, 0.0],
             [101.0, 200.0, 1.0],
             [101.0, 201.0, 2.0]
-        ))
+        ])
     );
     // t1
     assert_eq!(
         tris.next(),
-        Some((
+        Some([
             [100.0, 200.0, 0.0],
             [101.0, 201.0, 2.0],
             [100.0, 201.0, 3.0],
-        ))
+        ])
     );
 
     assert_eq!(tris.next(), None);
@@ -337,34 +337,34 @@ fn test_tri_3_dxf_import() {
     assert_eq!(t.tri_len(), 3);
     assert_eq!(t.point_len(), 7);
 
-    let mut tris = t.tris().map(|x| *x);
+    let mut tris = t.tris();
 
     // t0
     assert_eq!(
         tris.next(),
-        Some((
+        Some([
             [100.0, 200.0, 0.0],
             [101.0, 200.0, 1.0],
             [101.0, 201.0, 2.0]
-        ))
+        ])
     );
     // t1
     assert_eq!(
         tris.next(),
-        Some((
+        Some([
             [100.0, 200.0, 0.0],
             [101.0, 201.0, 2.0],
             [100.0, 201.0, 3.0],
-        ))
+        ])
     );
     // t2
     assert_eq!(
         tris.next(),
-        Some((
+        Some([
             [104.0, 204.0, 10.0],
             [104.0, 205.0, 11.0],
             [105.0, 205.0, 12.0],
-        ))
+        ])
     );
 
     assert_eq!(tris.next(), None);

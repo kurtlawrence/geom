@@ -845,33 +845,33 @@ mod contours {
 
         #[test]
         fn split_tri_test() {
-            let t = Box::new(([0.0, 0.0, 0.0], [0.0, 0.0, 0.5], [0.0, 1.0, 1.0]));
+            let t = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.5], [0.0, 1.0, 1.0]];
 
-            let x = split_tri(&t.clone(), -1.0);
+            let x = split_tri(t.clone(), -1.0);
             assert_eq!(x, None);
-            let x = split_tri(&t.clone(), 2.0);
+            let x = split_tri(t.clone(), 2.0);
             assert_eq!(x, None);
-            let x = split_tri(&t.clone(), 0.0);
+            let x = split_tri(t.clone(), 0.0);
             assert_eq!(x, None);
-            let x = split_tri(&t.clone(), 1.0);
+            let x = split_tri(t.clone(), 1.0);
             assert_eq!(x, Some([[0.0, 0.0, 0.0], [0.0, 0.0, 0.5], [0.0, 1.0, 1.0]]));
-            let x = split_tri(&t.clone(), 0.7);
+            let x = split_tri(t.clone(), 0.7);
             assert_eq!(x, Some([[0.0, 0.0, 0.0], [0.0, 0.0, 0.5], [0.0, 1.0, 1.0]]));
-            let x = split_tri(&t.clone(), 0.2);
+            let x = split_tri(t.clone(), 0.2);
             assert_eq!(x, Some([[0.0, 1.0, 1.0], [0.0, 0.0, 0.5], [0.0, 0.0, 0.0]]));
-            let x = split_tri(&t.clone(), 0.5);
+            let x = split_tri(t.clone(), 0.5);
             assert_eq!(x, Some([[0.0, 1.0, 1.0], [0.0, 0.0, 0.5], [0.0, 0.0, 0.0]]));
 
-            let t = Box::new(([0.0, 0.0, 0.5], [0.0, 0.0, 0.5], [0.0, 1.0, 0.5]));
+            let t = [[0.0, 0.0, 0.5], [0.0, 0.0, 0.5], [0.0, 1.0, 0.5]];
 
-            let x = split_tri(&t.clone(), 0.5);
+            let x = split_tri(t.clone(), 0.5);
             assert_eq!(x, None);
         }
 
         #[test]
         fn split_tri_test2() {
-            let t = Box::new(([0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.5]));
-            let x = split_tri(&t.clone(), 0.7);
+            let t = [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.5]];
+            let x = split_tri(t.clone(), 0.7);
             assert_eq!(x, Some([[0.0, 0.0, 0.0], [0.0, 1.0, 0.5], [0.0, 0.0, 1.0]]));
         }
         #[test]
@@ -894,8 +894,8 @@ mod contours {
 
         #[test]
         fn contour_tri_test() {
-            let t = Box::new(([0.0, 0.0, 0.0], [0.0, 1.0, 1.0], [1.0, 1.0, 1.0]));
-            let x = contour_tri(&t, 0.5);
+            let t = [[0.0, 0.0, 0.0], [0.0, 1.0, 1.0], [1.0, 1.0, 1.0]];
+            let x = contour_tri(t, 0.5);
             assert_eq!(x, Some(([0.5, 0.5, 0.5], [0.0, 0.5, 0.5])));
         }
 
