@@ -277,15 +277,18 @@ impl Grid {
     ///
     /// This effectively _drapes_ a grid over the mesh, using the top or bottom sampled RL.
     pub fn sample(mesh: &TriMesh, spacing: f64, top: bool) -> Self {
-        Self::sample_with_bounds(mesh, spacing, top, mesh.aabb())
+        Self::sample_with_bounds(mesh.tris(), spacing, top, mesh.aabb().into())
     }
 
-    /// Sample a [`TriMesh`] on the given `spacing`, within the given `aabb`.
+    /// Sample a bunch of [`Tri`]s on the given `spacing`, within the given `aabb`.
     ///
     /// This effectively _drapes_ a grid over the mesh, using the top or bottom sampled RL.
     /// The returned grid uses `aabb` as the characteristics, so two samples of different meshes
     /// using the same `aabb` can be used to union or intersect grids.
-    pub fn sample_with_bounds(mesh: &TriMesh, spacing: f64, top: bool, aabb: Extents3) -> Self {
+    pub fn sample_with_bounds<T>(tris: T, spacing: f64, top: bool, aabb: Extents2) -> Self
+    where
+        T: IntoIterator<Item = Tri>,
+    {
         type Map = HashMap<(u32, u32), f64>;
 
         fn loc_floor(p: Point2, origin: Point2, sp_inv: f64) -> (u32, u32) {
@@ -347,16 +350,19 @@ impl Grid {
         let map = Map::with_capacity_and_hasher(xlen * ylen, Default::default());
 
         // do the sampling
-        let samples: Map = mesh.tris().fold(map, |mut map, tri| {
+        let samples: Map = tris.into_iter().fold(map, |mut map, tri| {
             sample_tri(&mut map, tri, origin, spacing, sp_inv, top);
             map
         });
 
         // apply samples into grid
         let mut grid = Grid::new(origin, xlen, ylen, spacing);
-        for ((x, y), z) in samples {
-            grid.set(x as usize, y as usize, z);
-        }
+        samples
+            .into_iter()
+            // if a triangle extends past the aabb bounds, it will have indices
+            // that extend past the grid, so we filter these out.
+            .filter(|((x, y), _)| *x < xlen as u32 && *y < ylen as u32)
+            .for_each(|((x, y), z)| grid.set(x as usize, y as usize, z));
 
         grid
     }

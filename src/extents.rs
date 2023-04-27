@@ -49,6 +49,17 @@ where
             size: max.sub(origin),
         })
     }
+
+    pub fn intersects(self, other: Self) -> bool {
+        let outside = self.max().into_iter().zip(other.origin).any(|(m, c)| m < c)
+            || self
+                .origin
+                .into_iter()
+                .zip(other.max())
+                .any(|(o, c)| o >= c);
+
+        !outside
+    }
 }
 
 impl Extents3 {
@@ -161,22 +172,78 @@ mod tests {
     use quickcheck::TestResult;
 
     type P3 = (f64, f64, f64);
+    type E = (P3, P3);
+
+    fn to_p(p: P3) -> Point3 {
+        [p.0, p.1, p.2]
+    }
+
+    fn to_e((a, b): E) -> Option<Extents3> {
+        let a = to_p(a);
+        let b = to_p(b);
+
+        a.iter()
+            .chain(&b)
+            .all(|x| x.is_finite())
+            .then(|| Extents3::from_iter([a, b]))
+            .filter(|x| x.size.iter().all(|&x| x > 0.0))
+    }
 
     #[quickcheck]
-    fn lowering_e3_to_e2(a: P3, b: P3) -> TestResult {
-        let a = [a.0, a.1, a.2];
-        let b = [b.0, b.1, b.2];
-
-        if a.iter().any(|x| !x.is_finite()) || b.iter().any(|x| !x.is_finite()) {
+    fn lowering_e3_to_e2(x: E) -> TestResult {
+        let Some(e3) = to_e(x) else {
             return TestResult::discard();
-        }
+        };
 
-        let e3 = Extents3::from_iter([a, b]);
         let min = e3.origin.to_p2();
         let max = e3.max().to_p2();
 
         let e2 = Extents2::from(e3);
 
         TestResult::from_bool(e2.origin == min && e2.max() == max)
+    }
+
+    #[quickcheck]
+    fn intersection_consistent(a: E, b: E) -> TestResult {
+        let Some(a) = to_e(a) else {
+            return TestResult::discard();
+        };
+        let Some(b) = to_e(b) else {
+            return TestResult::discard();
+        };
+        if a.origin
+            .into_iter()
+            .zip(b.origin)
+            .zip(a.max().into_iter().zip(b.max()))
+            .any(|((a, b), (c, d))| a == b || a == c || a == d || b == c || b == d || c == d)
+        {
+            return TestResult::discard();
+        }
+
+        TestResult::from_bool(a.intersects(b) == a.intersection(b).is_some())
+    }
+
+    #[test]
+    fn intersection_tests() {
+        let a = Extents3::from_min_max([0.0; 3], [1.0; 3]);
+        let b = Extents3 {
+            origin: [0., 2., 0.],
+            size: Point3::one(),
+        };
+
+        assert!(!a.intersects(b));
+        assert_eq!(a.intersection(b), None);
+
+        let a = Extents2 {
+            origin: [0., -1.0],
+            size: Point2::one(),
+        };
+        let b = Extents2 {
+            origin: Point2::zero(),
+            size: Point2::one(),
+        };
+
+        assert!(a.intersects(b));
+        assert!(a.intersection(b).is_some());
     }
 }

@@ -4,6 +4,13 @@ use crate::*;
 /// Boxed since 3 points is 72 bytes.
 pub type Tri = Box<(Point3, Point3, Point3)>;
 
+impl Aabb for Tri {
+    type Space = Point3;
+    fn aabb(&self) -> Extents<Self::Space> {
+        Extents::from_iter([self.0, self.1, self.2])
+    }
+}
+
 /// A triangle mesh.
 ///
 /// `PartialEq` is _derived_ but does _exact_ equality including structural equality. This is
