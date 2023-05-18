@@ -83,6 +83,9 @@ impl<T> GenericGrid<T> {
         self.len_nonempty() == 0
     }
 
+    /// Returns the [`Point2`] coordinates of the `x` and `y` indices.
+    ///
+    /// Note that this will always return a value, even if a grid point does not exist.
     pub fn get_xy(&self, x: usize, y: usize) -> Point2 {
         let to = [x as f64, y as f64];
         self.origin.add(to.scale(self.spacing))
@@ -178,6 +181,23 @@ impl<T> GenericGrid<T> {
             .into_par_iter()
             .flat_map(move |y| (0..self.x_count()).into_par_iter().map(move |x| (x, y)))
             .filter_map(move |(x, y)| self.get(x, y))
+    }
+
+    pub fn map<F: FnMut(T) -> U, U>(self, mut f: F) -> GenericGrid<U> {
+        let Self {
+            origin,
+            stride,
+            spacing,
+            zs,
+        } = self;
+        let zs = zs.into_iter().map(|x| x.map(&mut f)).collect();
+
+        GenericGrid {
+            origin,
+            stride,
+            spacing,
+            zs,
+        }
     }
 }
 
@@ -316,12 +336,12 @@ impl Grid {
             let lwr = loc_floor(min, origin, sp_inv);
             let upr = loc_floor(max, origin, sp_inv);
 
-            let poly = Polygon2::new([p1, p2, p3].iter().copied()).expect("given 3 points");
+            let pinside = |p| polygon::point_inside(&[p1, p2, p3], p);
 
             let pts = (lwr.1..=upr.1).flat_map(|y| (lwr.0..=upr.0).map(move |x| (x, y)));
             for (x, y) in pts {
                 let pt = origin.add([x as f64, y as f64].scale(spacing));
-                if !poly.envelops(pt) {
+                if !pinside(pt) {
                     continue;
                 }
 

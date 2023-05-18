@@ -239,9 +239,25 @@ impl FromIterator<Tri> for TriMesh {
     }
 }
 
+/// Test if a point is **inside** a solid [`TriMesh`].
+///
+/// If you are wanting to test that a point lays _on_ a surface, use envelops with a [`Point2`].
 impl Envelops<Point3> for TriMesh {
     fn envelops(&self, p: Point3) -> bool {
         todo!()
+    }
+}
+
+/// Test if a point lays **on** a [`TriMesh`].
+///
+/// Note this solely tests for 2D intersection.
+impl Envelops<Point2> for TriMesh {
+    fn envelops(&self, p: Point2) -> bool {
+        if Extents2::from(self.aabb()).envelops(p) {
+            self.tris().any(|tri| polygon::point_inside(&tri, p))
+        } else {
+            false
+        }
     }
 }
 

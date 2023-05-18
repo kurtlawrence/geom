@@ -132,10 +132,20 @@ impl ToPoint2 for Point2 {
         self
     }
 }
+impl ToPoint2 for &Point2 {
+    fn to_p2(self) -> Point2 {
+        *self
+    }
+}
 impl ToPoint2 for Point3 {
     fn to_p2(self) -> Point2 {
         let [x, y, _] = self;
         [x, y]
+    }
+}
+impl ToPoint2 for &Point3 {
+    fn to_p2(self) -> Point2 {
+        (*self).to_p2()
     }
 }
 
