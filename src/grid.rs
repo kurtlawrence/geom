@@ -47,6 +47,15 @@ impl<T> GenericGrid<T> {
         self.origin
     }
 
+    /// The 2D plan extents that this grid can cover.
+    /// 
+    /// This does not account for grid point existence, just the origin, the spacing, and
+    /// the lengths.
+    pub fn extents(&self) -> Extents2 {
+        let size = [self.x_count(), self.y_count()].map(|x| x as f64 * self.spacing);
+        Extents { origin: self.origin, size }
+    }
+
     /// The number of grid points in the x-axis.
     pub fn x_count(&self) -> usize {
         self.stride

@@ -253,6 +253,8 @@ impl Envelops<Point3> for TriMesh {
 /// Note this solely tests for 2D intersection.
 impl Envelops<Point2> for TriMesh {
     fn envelops(&self, p: Point2) -> bool {
+        todo!("need to document that this is really slow since it has to test each triangulation!");
+        // TODO: provide an alternative testing framework
         if Extents2::from(self.aabb()).envelops(p) {
             self.tris().any(|tri| polygon::point_inside(&tri, p))
         } else {

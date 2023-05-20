@@ -16,7 +16,7 @@ pub mod io;
 mod line;
 mod plane;
 mod point;
-mod polygon;
+pub mod polygon;
 mod trimesh;
 
 pub use extents::*;
