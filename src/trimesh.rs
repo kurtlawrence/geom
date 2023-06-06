@@ -10,6 +10,26 @@ impl Aabb for Tri {
     }
 }
 
+impl Area for Tri {
+    /// Calculate the **face** area in the _face's plane_.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use geom::*;
+    /// let tri = [[0., 0., 0.], [1., 0., 0.], [1., 1., 0.]];
+    /// assert!((tri.area() - 0.5).abs() < 1e-7);
+    /// ```
+    #[inline(always)]
+    fn area(&self) -> f64 {
+        // https://math.stackexchange.com/questions/128991/how-to-calculate-the-area-of-a-3d-triangle
+        // - half the magnitude of the cross product (makes sense if you think of determinant!)
+        let [a, b, c] = *self;
+        let ac = c.sub(a);
+        let ab = b.sub(a);
+        xprod(ac, ab).mag() * 0.5
+    }
+}
+
 /// A triangle mesh.
 ///
 /// `PartialEq` is _derived_ but does _exact_ equality including structural equality. This is
@@ -130,6 +150,15 @@ impl TriMesh {
                 }
             }
         }
+    }
+}
+
+impl Area for TriMesh {
+    /// Calculates the **surface area** of the mesh.
+    ///
+    /// The surface area is defined as the _sum_ of all triangle face in the _face's plane._
+    fn area(&self) -> f64 {
+        self.tris().map(|x| x.area()).sum()
     }
 }
 
@@ -332,8 +361,8 @@ mod outline {
         set
     }
 
-    fn join_edges(edges: &mut Vec<Edge>) -> VecDeque<u32> {
-        // worst case is O(n²)
+    /// Assumes that `edges` is sorted.
+    pub fn join_edges(edges: &mut Vec<Edge>) -> VecDeque<u32> {
         let mut v = VecDeque::with_capacity(edges.len());
         match edges.pop() {
             Some(Edge(a, b)) => {
@@ -343,47 +372,52 @@ mod outline {
             None => return v,
         }
 
-        // the get algorithm uses swap_remove to linearly search through edges
-        let mut get = |pos| {
-            let mut r = None;
-            // search backwards, since swap_remove swaps in last element
-            for i in (0..edges.len()).rev() {
-                let Edge(a, b) = edges.swap_remove(i); // last goes to i'th
-                if a == pos {
-                    r = Some(b); // a matches pos, so b is next point
-                } else if b == pos {
-                    r = Some(a); // b matches pos, so a is next point
-                } else {
-                    edges.push(Edge(a, b)); // neither matches, push edge back
-                }
-                if r.is_some() {
-                    break; // found it so break
-                }
-            }
-
-            r
-        };
+        // we use the fact that `edges` is sorted, we can quickly find the matching edge.
 
         let (mut has_front, mut has_back) = (true, true);
-
         loop {
+            // we stop searching if no front or back matching points are found.
             if !has_front && !has_back {
                 break;
             }
 
             if has_front {
                 let front = *v.front().expect("will have front");
-                match get(front) {
-                    Some(x) => v.push_front(x),
-                    None => has_front = false,
+                match edges.binary_search_by(|Edge(a, _)| a.cmp(&front)) {
+                    // there exists an edge where `a` matches the front.
+                    Ok(idx) => {
+                        // since `a` matches the front, push `b` in front of that.
+                        let Edge(_, b) = edges.remove(idx);
+                        v.push_front(b);
+                    }
+                    // none found for `a`, check for `b`
+                    Err(_) => match edges.binary_search_by(|Edge(_, b)| b.cmp(&front)) {
+                        // there exists an edge where `b` matches the front
+                        Ok(idx) => {
+                            // since `b` matches the front, push `a` in front of that.
+                            let Edge(a, _) = edges.remove(idx);
+                            v.push_front(a);
+                        }
+                        // neither `a` nor `b` match the front, so we flag that the front is done
+                        Err(_) => has_front = false,
+                    },
                 }
             }
 
             if has_back {
                 let back = *v.back().expect("will have back");
-                match get(back) {
-                    Some(x) => v.push_back(x),
-                    None => has_back = false,
+                match edges.binary_search_by(|Edge(a, _)| a.cmp(&back)) {
+                    Ok(idx) => {
+                        let Edge(_, b) = edges.remove(idx);
+                        v.push_back(b);
+                    }
+                    Err(_) => match edges.binary_search_by(|Edge(_, b)| b.cmp(&back)) {
+                        Ok(idx) => {
+                            let Edge(a, _) = edges.remove(idx);
+                            v.push_back(a);
+                        }
+                        Err(_) => has_back = false,
+                    },
                 }
             }
         }
@@ -393,6 +427,7 @@ mod outline {
 
     pub fn get_outlines(free_edges: Vec<Edge>) -> Vec<VecDeque<u32>> {
         let mut edges = free_edges;
+        edges.sort();
         let mut v = Vec::new();
 
         while !edges.is_empty() {
@@ -997,14 +1032,48 @@ mod tests {
         assert_eq!(t.triangles, tris);
     }
 
+    fn test_outline(exp: Vec<Point3>, got: Vec<Point3>) -> bool {
+        let fst = exp.get(0);
+        let mut got = std::collections::VecDeque::from(got);
+
+        // rotate got until it starts with fst
+        for _ in 0..got.len() {
+            if got.front() == fst {
+                break;
+            } else {
+                let x = got.pop_front().unwrap();
+                got.push_back(x);
+            }
+        }
+
+        if got.front() != fst {
+            return false;
+        }
+
+        let got = if got.iter().nth(1) != exp.get(1) {
+            // sometimes the order is reversed, so we need to do the same here
+            for _ in 1..got.len() {
+                let x = got.pop_back().unwrap();
+                got.push_front(x);
+            }
+
+            Vec::from_iter(got.into_iter().rev())
+        } else {
+            Vec::from(got)
+        };
+
+        dbg!(&exp, &got);
+        exp == got
+    }
+
     #[test]
     fn outlines1() {
         let g = dummy_grid();
         let t = TriMesh::from(&g);
 
-        let x = t.outlines();
+        let mut x = t.outlines();
 
-        let exp = vec![vec![
+        let mut exp = vec![vec![
             [0.0, 30.0, 5.0],
             [0.0, 15.0, 3.0],
             [0.0, 0.0, 1.0],
@@ -1013,12 +1082,12 @@ mod tests {
             [15.0, 30.0, 6.0],
         ]];
 
-        assert_eq!(x, exp);
+        assert!(test_outline(exp.remove(0), x.remove(0)));
     }
 
     #[test]
     fn outlines3() {
-        let mut g = Grid::new([0.0, 0.0], 2, 5, 15.0);
+        let mut g = Grid::new(Point2::zero(), 2, 5, 15.0);
         for (z, (x, y)) in (0..5).flat_map(|y| (0..2).map(move |x| (x, y))).enumerate() {
             g.set(x, y, z as f64);
         }
@@ -1026,9 +1095,9 @@ mod tests {
         g.set(1, 2, None);
         let t = TriMesh::from(&g);
 
-        let x = t.outlines();
+        let mut x = t.outlines();
 
-        let exp = vec![
+        let mut exp = vec![
             vec![
                 [0.0, 15.0, 2.0],
                 [0.0, 0.0, 0.0],
@@ -1043,7 +1112,8 @@ mod tests {
             ],
         ];
 
-        assert_eq!(x, exp);
+        assert!(test_outline(exp.remove(1), x.remove(0)));
+        assert!(test_outline(exp.remove(0), x.remove(0)));
     }
 
     #[test]
@@ -1126,5 +1196,17 @@ mod tests {
             ]
         );
         assert_eq!(&mesh.triangles, &[(0, 1, 2), (1, 2, 3)]);
+    }
+
+    #[test]
+    fn area_smoke_test() {
+        let t = TriMesh::from_iter([[[0., 0., 0.], [1., 0., 0.], [1., 1., 0.]]]);
+        assert!((t.area() - 0.5).abs() < 1e-7);
+
+        let t = TriMesh::from(&dummy_grid());
+        dbg!(t.area());
+        // dummy grid as 15m with 2x3 layout.
+        // that is a plan area of 15x30=450, so 454 seems reasonable
+        assert!((t.area() - 454.97252664309315).abs() < 1e-7);
     }
 }

@@ -4,8 +4,12 @@ use crate::*;
 pub struct Polygon2(Vec<Point2>);
 
 impl Polygon2 {
-    pub fn new(points: impl Iterator<Item = Point2>) -> Result<Self, &'static str> {
-        let points = points.collect::<Vec<_>>();
+    pub fn new<I, P>(points: I) -> Result<Self, &'static str>
+    where
+        I: IntoIterator<Item = P>,
+        P: ToPoint2,
+    {
+        let points = points.into_iter().map(ToPoint2::to_p2).collect::<Vec<_>>();
         if points.len() < 3 {
             Err("polygon requires 3 or more points to be valid")
         } else {
@@ -27,6 +31,37 @@ impl Polygon2 {
 
     pub fn iter(&self) -> impl ExactSizeIterator<Item = Point2> + '_ {
         self.0.iter().copied()
+    }
+}
+
+impl Area for Polygon2 {
+    /// 2D plan area.
+    ///
+    /// # Example
+    /// ```rust
+    /// use geom::*;
+    /// let p = Polygon2::new([
+    ///     [0.0, 0.0],
+    ///     [2.0, 0.0],
+    ///     [2.0, 3.0],
+    ///     [0.0, 3.0]
+    /// ]).unwrap();
+    ///
+    /// assert!((p.area() - 6.0).abs() < 1e-3);
+    /// ```
+    fn area(&self) -> f64 {
+        // https://stackoverflow.com/questions/451426/how-do-i-calculate-the-area-of-a-2d-polygon
+        self.pts()
+            .iter()
+            .zip(self.pts().iter().skip(1))
+            .chain(std::iter::once((
+                self.pts().last().unwrap(),
+                &self.pts()[0],
+            )))
+            .map(|([ax, ay], [bx, by])| ax * by - ay * bx)
+            .sum::<f64>()
+            .abs()
+            * 0.5
     }
 }
 

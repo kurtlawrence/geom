@@ -48,12 +48,15 @@ impl<T> GenericGrid<T> {
     }
 
     /// The 2D plan extents that this grid can cover.
-    /// 
+    ///
     /// This does not account for grid point existence, just the origin, the spacing, and
     /// the lengths.
     pub fn extents(&self) -> Extents2 {
         let size = [self.x_count(), self.y_count()].map(|x| x as f64 * self.spacing);
-        Extents { origin: self.origin, size }
+        Extents {
+            origin: self.origin,
+            size,
+        }
     }
 
     /// The number of grid points in the x-axis.
@@ -206,6 +209,65 @@ impl<T> GenericGrid<T> {
             stride,
             spacing,
             zs,
+        }
+    }
+
+    /// Downsample the grid by _dropping_ `skip` points between points.
+    ///
+    /// Note that a `skip` of 0 just returns the grid.
+    pub fn downsample(self, skip: usize) -> Self {
+        if skip == 0 {
+            return self;
+        }
+
+        let Self {
+            origin,
+            stride,
+            spacing,
+            mut zs,
+        } = self;
+
+        // to efficiently drop the points, we can use .retain on the backing vector
+        // retain visits elements in order exactly once, so we can keep an index track
+        // to work out if it needs dropping or not
+        // for example, in a 3x3 grid, we drop the 1,3,4,5,7 indices.
+        // that is, x=1 || y=1
+        // That is if skip is 1.
+        // When testing for larger skips, it then becomes a case of checking the mod of skip + 1
+        // (7x7 skip 2):
+        // x0 keep (0 % 3 == 0)
+        // x1 skip
+        // x2 skip
+        // x3 keep (3 % 3 == 0)
+        // x4 skip
+        // x5 skip
+        // x6 keep (6 % 6 == 0)
+        let mut idx = 0;
+        let modby = skip + 1;
+        zs.retain(|_| {
+            let i = idx;
+            idx += 1;
+
+            let y = i / stride;
+            if y % modby != 0 {
+                return false;
+            }
+
+            let x = i.saturating_sub(y * stride);
+            x % modby == 0
+        });
+
+        // the stride reduces by the floor of (skip + 1)
+        let stride = (stride + skip) / modby;
+
+        // the spacing expands by the (skip + 1)
+        let spacing = spacing * modby as f64;
+
+        Self {
+            zs,
+            origin, // origin does not change
+            stride,
+            spacing,
         }
     }
 }
@@ -471,5 +533,48 @@ mod tests {
             points.next().map(|p| (p.idx(), p.p3())),
             Some((5, [15.0, 30.0, 6.0]))
         );
+    }
+
+    #[test]
+    fn grid_downsample_smoke() {
+        let origin = Point2::zero();
+        let g = Grid::new(origin, 2, 2, 2.0);
+        let g2 = g.clone().downsample(0);
+        assert_eq!(g, g2);
+
+        // 2x2 skip 1: expecting to drop just to a single point
+        let g = Grid::new(origin, 2, 2, 2.0).downsample(1);
+        assert_eq!(g.len(), 1);
+        assert_eq!(g.x_count(), 1);
+        assert_eq!(g.y_count(), 1);
+        assert_eq!(g.spacing(), 4.0);
+
+        // 3x3 skip 1
+        let g = Grid::new(origin, 3, 3, 2.0).downsample(1);
+        assert_eq!(g.len(), 4);
+        assert_eq!(g.x_count(), 2);
+        assert_eq!(g.y_count(), 2);
+        assert_eq!(g.spacing(), 4.0);
+
+        // 3x5 skip 1
+        let g = Grid::new(origin, 3, 5, 2.0).downsample(1);
+        assert_eq!(g.len(), 6);
+        assert_eq!(g.x_count(), 2);
+        assert_eq!(g.y_count(), 3);
+        assert_eq!(g.spacing(), 4.0);
+
+        // 6x6 skip 2
+        let g = Grid::new(origin, 6, 6, 2.0).downsample(2);
+        assert_eq!(g.len(), 4);
+        assert_eq!(g.x_count(), 2);
+        assert_eq!(g.y_count(), 2);
+        assert_eq!(g.spacing(), 6.0);
+
+        // 7x7 skip 2
+        let g = Grid::new(origin, 7, 7, 2.0).downsample(2);
+        assert_eq!(g.len(), 9);
+        assert_eq!(g.x_count(), 3);
+        assert_eq!(g.y_count(), 3);
+        assert_eq!(g.spacing(), 6.0);
     }
 }

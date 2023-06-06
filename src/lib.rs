@@ -31,6 +31,17 @@ pub trait Envelops<O> {
     fn envelops(&self, object: O) -> bool;
 }
 
+/// Area can be calculated from an object.
+///
+/// Note that area is contextual from the object.
+/// For instance, a [`Polygon2`] would be the _plan_ area, a [`TriMesh`] would be the _surface
+/// area_, etc.
+/// If implementing this trait be sure to be **explicit** about the area being calculated.
+pub trait Area {
+    /// Calculate the area of an object.
+    fn area(&self) -> f64;
+}
+
 #[cfg(test)]
 fn dummy_grid() -> Grid {
     let mut g = Grid::new([0.0, 0.0], 2, 3, 15.0);

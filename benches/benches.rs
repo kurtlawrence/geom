@@ -3,22 +3,17 @@ use geom::*;
 
 fn polygons(c: &mut Criterion) {
     c.bench_function("point inside small polygon", |b| {
-        let polygon = Polygon2::new(
-            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)]
-                .iter()
-                .copied(),
-        )
-        .unwrap();
-        b.iter(|| polygon.envelops((0.34, 0.578)))
+        let polygon = Polygon2::new([[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [1.0, 0.0]]).unwrap();
+        b.iter(|| polygon.envelops([0.34, 0.578]))
     });
     c.bench_function("point inside large polygon", |b| {
         let points = (0..100)
-            .map(|x| (0.0, x as f64))
-            .chain((0..100).map(|x| (x as f64, 100.0)))
-            .chain((0..100).rev().map(|x| (100.0, x as f64)))
-            .chain((1..100).rev().map(|x| (x as f64, 0.0)));
+            .map(|x| [0.0, x as f64])
+            .chain((0..100).map(|x| [x as f64, 100.0]))
+            .chain((0..100).rev().map(|x| [100.0, x as f64]))
+            .chain((1..100).rev().map(|x| [x as f64, 0.0]));
         let polygon = Polygon2::new(points).unwrap();
-        b.iter(|| polygon.envelops((3.34, 78.578)))
+        b.iter(|| polygon.envelops([3.34, 78.578]))
     });
 }
 
@@ -27,7 +22,7 @@ fn planes(c: &mut Criterion) {
         (0..size)
             .flat_map(move |x| (0..size).map(move |y| (x, y)))
             .enumerate()
-            .map(|(z, (x, y))| (x as f64, y as f64, z as f64))
+            .map(|(z, (x, y))| [x as f64, y as f64, z as f64])
             .collect()
     }
     c.bench_function("fit least sqs small", |b| {
@@ -42,7 +37,7 @@ fn planes(c: &mut Criterion) {
 
 fn trimeshs(c: &mut Criterion) {
     fn grid(size: usize) -> Grid {
-        let mut g = Grid::new((300.0, 150.0), size, size, 30.0);
+        let mut g = Grid::new([300.0, 150.0], size, size, 30.0);
         let p = (0..size)
             .flat_map(move |x| (0..size).map(move |y| (x, y)))
             .enumerate();
@@ -104,16 +99,17 @@ fn trimeshs(c: &mut Criterion) {
         b.iter(|| t.contour(2.0))
     });
 
-    c.bench_function("contours 1m actual", |b| {
-        let t = io::trimesh::from_vulcan_00t(&std::fs::read("test/VOID_Simplified.00t").unwrap())
-            .unwrap();
-        b.iter(|| t.contour(1.0))
-    });
+    // this takes too long for now. (https://github.com/kdr-aus/geom/issues/1)
+    //     c.bench_function("contours 1m actual", |b| {
+    //         let t = io::trimesh::from_vulcan_00t(&std::fs::read("test/VOID_Simplified.00t").unwrap())
+    //             .unwrap();
+    //         b.iter(|| t.contour(1.0))
+    //     });
 }
 
 fn grids(c: &mut Criterion) {
     fn grid(size: usize) -> Grid {
-        let mut g = Grid::new((300.0, 150.0), size, size, 30.0);
+        let mut g = Grid::new([300.0, 150.0], size, size, 30.0);
         let p = (0..size)
             .flat_map(move |x| (0..size).map(move |y| (x, y)))
             .enumerate();
