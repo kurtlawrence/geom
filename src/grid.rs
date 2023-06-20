@@ -85,7 +85,7 @@ impl<T> GenericGrid<T> {
         self.zs.iter().filter(|x| x.is_some()).count()
     }
 
-    /// Returns if the grid is zero-sized, that is, has not points **at all**.
+    /// Returns if the grid is zero-sized, that is, has no points **at all**.
     pub fn is_empty(&self) -> bool {
         self.zs.is_empty()
     }
@@ -269,6 +269,11 @@ impl<T> GenericGrid<T> {
             stride,
             spacing,
         }
+    }
+
+    /// Consume the grid, returning the backing data array.
+    pub fn into_zs(self) -> Vec<Option<T>> {
+        self.zs
     }
 }
 
