@@ -51,3 +51,19 @@ fn dummy_grid() -> Grid {
         .for_each(|((x, y), z)| g.set(x, y, z as f64));
     g
 }
+
+#[cfg(test)]
+#[derive(Clone, Debug)]
+struct ExactFloatsGen<const D: usize> {
+    pub floats: Vec<f64>,
+}
+
+#[cfg(test)]
+impl<const D: usize> quickcheck::Arbitrary for ExactFloatsGen<D> {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        let floats = std::iter::repeat_with(|| f64::arbitrary(g))
+            .take(D)
+            .collect();
+        Self { floats }
+    }
+}

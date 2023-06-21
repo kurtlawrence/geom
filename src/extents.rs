@@ -74,6 +74,134 @@ impl Extents3 {
         let [w, d, h] = self.size;
         w * d * h
     }
+
+    /// Cut the box with a plane, returning the intersection points.
+    ///
+    /// Cutting a bounding box is useful for _reducing_ an AABB by a plane (such as a view plane).
+    /// This function will only return the points that intersect a cutting plane, what side to keep
+    /// should be tested with [`Plane::lies`]. An empty vector indicates that the AABB lies
+    /// completely on one side of the plane.
+    ///
+    /// > **Note that _coincident_ points are _excluded_ as intersection points.**
+    /// > This is done because a 'cut' is intended to partition the AABB's corners into categories,
+    /// > so including coincident points would lead to ambiguity.
+    ///
+    /// # Examples
+    ///
+    /// ## Reducing an AABB with a view plane
+    /// ```rust
+    /// # use geom::*;
+    /// let aabb = Extents3::from_min_max(Point3::zero(), Point3::one());
+    /// let plane = Plane::from([
+    ///     [0.5, 0.0, 0.0],
+    ///     [0.0, 0.5, 0.0],
+    ///     [0.0, 0.0, 0.5],
+    /// ]);
+    ///
+    /// let x = aabb.cut(&plane, 1e-7);
+    /// assert_eq!(x.len(), 3);
+    /// assert_eq!(x, &[
+    ///     [0.5, 0.0, 0.0],
+    ///     [0.0, 0.5, 0.0],
+    ///     [0.0, 0.0, 0.5],
+    /// ]);
+    ///
+    /// let reduced_aabb = Extents3::from_iter(
+    ///     x.into_iter().chain(std::iter::once(aabb.origin))
+    /// );
+    /// assert_eq!(reduced_aabb.max(), [0.5, 0.5, 0.5]);
+    /// ```
+    ///
+    /// ## Coincident points are not intersection points
+    /// ```rust
+    /// # use geom::*;
+    /// let aabb = Extents3::from_min_max(Point3::zero(), Point3::one());
+    /// let plane = Plane::from([
+    ///     [0.5, 0.0, 0.0],
+    ///     [0.5, 0.5, 0.0],
+    ///     [1.0, 1.0, 1.0],
+    /// ]);
+    ///
+    /// let x = aabb.cut(&plane, 1e-7);
+    /// assert_eq!(x.len(), 2);
+    /// assert_eq!(x, &[
+    ///     [0.5, 0.0, 0.0],
+    ///     [0.5, 1.0, 0.0],
+    /// ]);
+    /// ```
+    ///
+    /// ## Extents lies on one side of plane
+    /// ```rust
+    /// # use geom::*;
+    /// let aabb = Extents3::from_min_max(Point3::zero(), Point3::one());
+    /// // notice that it conincides with aabb
+    /// let plane = Plane::from([
+    ///     [2.0, 0.0, 0.0],
+    ///     [1.0, 0.0, 1.0],
+    ///     [1.0, 1.0, 1.0],
+    /// ]);
+    ///
+    /// let x = aabb.cut(&plane, 1e-7);
+    /// assert!(x.is_empty());
+    /// ```
+    pub fn cut(&self, plane: &Plane, tolerance: f64) -> Vec<Point3> {
+        let [x0, y0, z0] = self.origin;
+        let [x1, y1, z1] = self.max();
+        let corners = [
+            [x0, y0, z0],
+            [x1, y0, z0],
+            [x1, y1, z0],
+            [x0, y1, z0],
+            [x0, y0, z1],
+            [x1, y0, z1],
+            [x1, y1, z1],
+            [x0, y1, z1],
+        ];
+
+        let corners_ = corners.map(|p| plane.lies(p, tolerance));
+
+        let segments = [
+            // front
+            [0, 1],
+            [1, 2],
+            [2, 3],
+            [3, 0],
+            // connectors
+            [0, 4],
+            [1, 5],
+            [2, 6],
+            [3, 7],
+            // back
+            [4, 5],
+            [5, 6],
+            [6, 7],
+            [7, 4],
+        ];
+
+        let mut v = Vec::new();
+
+        for seg in segments {
+            // there are only two cases that we want to find the intersection and that
+            // happens when the segment a/b has inverted Lies values.
+            let [a, b] = seg.map(|x| corners_[x]);
+            if a == Lies::On || a != b.inv() {
+                continue;
+            }
+
+            let [a, b] = seg.map(|x| corners[x]);
+
+            // line-plane intersection
+            let l = b.sub(a);
+            let num = dot_prod(plane.centroid().sub(a), plane.normal());
+            let den = dot_prod(l, plane.normal());
+            let d = num / den;
+
+            let p = a.add(l.scale(d));
+            v.push(p);
+        }
+
+        return v;
+    }
 }
 
 impl From<Extents3> for Extents2 {
@@ -245,5 +373,34 @@ mod tests {
 
         assert!(a.intersects(b));
         assert!(a.intersection(b).is_some());
+    }
+
+    #[test]
+    fn cut_smoke_tests() {
+        let aabb = Extents3::from_min_max(Point3::zero(), Point3::one());
+        let plane = Plane::from([[0.5, 0.0, 0.0], [0.0, 0.5, 0.0], [0.0, 0.0, 0.5]]);
+
+        let x = aabb.cut(&plane, 1e-7);
+        assert_eq!(x.len(), 3);
+        assert_eq!(x, &[[0.5, 0.0, 0.0], [0.0, 0.5, 0.0], [0.0, 0.0, 0.5],]);
+
+        let plane = Plane::from([[0.25, 0.0, 0.0], [0.25, 0.5, 0.0], [0.0, 0.0, 0.25]]);
+
+        let x = aabb.cut(&plane, 1e-7);
+        assert_eq!(x.len(), 4);
+        assert_eq!(
+            x,
+            &[
+                [0.25, 0.0, 0.0],
+                [0.25, 1.0, 0.0],
+                [0.0, 0.0, 0.25],
+                [0.0, 1.0, 0.25],
+            ]
+        );
+
+        let plane = Plane::from([[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 0.0, 0.25]]);
+
+        let x = aabb.cut(&plane, 1e-7);
+        assert_eq!(x.len(), 0);
     }
 }

@@ -136,6 +136,69 @@ impl Plane {
 
         [x, y, z].add(self.normal.scale(t)) // p + tN
     }
+
+    /// Returns where **this plane lies** with respect to the `point`.
+    ///
+    /// **Note the semantics!**. It is answering the sentence 'the plane lies `Above|On|Below` the
+    /// point'.
+    ///
+    /// The notion of 'aboveness' is governed by the plane's normal.
+    /// The plane is 'above' the point if the plane-to-point normal runs in the opposite direction,
+    /// whilst the plane is 'below' the point if the plane-to-point normal runs in the same
+    /// direction.
+    ///
+    /// The tolerance governs what will be considered coincident within numerical precision.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use geom::*;
+    /// let plane = Plane::from([
+    ///     [0.5, 0.0, 0.0],
+    ///     [0.0, 0.5, 0.0],
+    ///     [0.0, 0.0, 0.5],
+    /// ]);
+    ///
+    /// // plane lies below (1,1,1)
+    /// assert_eq!(plane.lies(Point3::one(), 1e-5), Lies::Below);
+    /// // plane lies above (0,0,0)
+    /// assert_eq!(plane.lies(Point3::zero(), 1e-5), Lies::Above);
+    /// // plane lies on (0.5,0,0)
+    /// assert_eq!(plane.lies([0.5, 0.0, 0.0], 1e-5), Lies::On);
+    /// ```
+    ///
+    /// # A note on NaNs
+    /// To avoid spurious results, if any structures are poisoned with NaNs (plane or point),
+    /// this function _always_ returns `Lies::On`.
+    pub fn lies(&self, point: Point3, tolerance: f64) -> Lies {
+        // the test is pretty simple, we work out the dot product of the normal and the
+        // vector made from the point to the plane.
+        // we could use the centroid, however this may run into precision errors if the
+        // point is close to the plane but far from the centroid.
+        // instead, for a little more work, we work out the vector between the point and
+        // the closest point on the plane.
+        let cl = self.shortest_dist(point);
+
+        if self
+            .normal()
+            .into_iter()
+            .chain(self.centroid())
+            .chain(point)
+            .chain(cl)
+            .chain(std::iter::once(self.d()))
+            .any(|x| x.is_nan())
+        {
+            return Lies::On;
+        }
+
+        let v = point.sub(cl);
+        if v.mag() < tolerance {
+            Lies::On // point is coincident with plane
+        } else if dot_prod(self.normal(), v).is_sign_positive() {
+            Lies::Below // plane is below point
+        } else {
+            Lies::Above
+        }
+    }
 }
 
 impl From<Tri> for Plane {
@@ -148,9 +211,39 @@ impl From<Tri> for Plane {
     }
 }
 
+/// Description of relative location between two objects.
+///
+/// Specifically used for [`Plane::lies`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Lies {
+    Above,
+    On,
+    Below,
+}
+
+impl Lies {
+    /// Invert the semantics.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use geom::*;
+    /// assert_eq!(Lies::Above.inv(), Lies::Below);
+    /// assert_eq!(Lies::On.inv(), Lies::On);
+    /// assert_eq!(Lies::Below.inv(), Lies::Above);
+    /// ```
+    pub fn inv(self) -> Self {
+        match self {
+            Lies::Above => Lies::Below,
+            Lies::On => Lies::On,
+            Lies::Below => Lies::Above,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quickcheck::TestResult;
 
     #[test]
     fn fit_least_sqs_plane() {
@@ -207,5 +300,34 @@ mod tests {
 
         let x = plane.register_z([-0.5, -0.5]) - -0.5_f64.sqrt();
         assert!(x.abs() < 1e-11);
+    }
+
+    #[quickcheck]
+    fn lies_fuzz(ps: ExactFloatsGen<9>) -> TestResult {
+        let ps = ps.floats;
+        let centroid: Point3 = ps[..3].try_into().unwrap();
+        let normal: Point3 = ps[3..6].try_into().unwrap();
+        let point: Point3 = ps[6..].try_into().unwrap();
+
+        let plane = Plane::new(centroid, normal);
+        let v = point.sub(plane.shortest_dist(point));
+        if v.mag().is_infinite() {
+            return TestResult::discard(); // can't really test
+        }
+        let x = match dbg!(plane.lies(point, 1e-7)) {
+            Lies::On => v.mag() < 1e-7 || v.mag().is_nan(),
+            Lies::Below => {
+                v.mag() >= 1e-7
+                // normals in same direction
+                && (v.unit().add(plane.normal().unit()).mag() - 2.0).abs() < 1e-7
+            }
+            Lies::Above => {
+                v.mag() >= 1e-7
+                // normals in opposite direction
+                && v.unit().add(plane.normal().unit()).mag() < 1e-7
+            }
+        };
+
+        TestResult::from_bool(x)
     }
 }
