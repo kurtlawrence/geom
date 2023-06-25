@@ -1,0 +1,10 @@
+FMT_3
+Layer:  out1                                                                                                                     0
+POLHED: Shape                                                                                                                   0.000           
+Graphic: 110 00TXT_NEW             
+Named:                                                              
+Point:    0      100.000000      200.000000        0.000000        0.000000                                        
+Point:    1      101.000000      200.000000        1.000000        0.000000                                        
+Point:    1      101.000000      201.000000        2.000000        0.000000                                        
+End:    Shape                                   
+End:    out1                                    
