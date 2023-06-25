@@ -20,6 +20,12 @@ where
         }
     }
 
+    pub fn from_min_max(min: P, max: P) -> Self {
+        let size = max.sub(min);
+
+        Self { origin: min, size }
+    }
+
     pub fn max(&self) -> P {
         self.origin.add(self.size)
     }
@@ -63,16 +69,26 @@ where
 }
 
 impl Extents3 {
-    pub fn from_min_max(min: Point3, max: Point3) -> Self {
-        let size = max.sub(min);
-
-        Self { origin: min, size }
-    }
-
     /// A three-dimensional AABB has volume!
     pub fn volume(&self) -> f64 {
         let [w, d, h] = self.size;
         w * d * h
+    }
+
+    /// Return the 8 corners of this box.
+    pub fn corners(&self) -> [Point3; 8] {
+        let [x0, y0, z0] = self.origin;
+        let [x1, y1, z1] = self.max();
+        [
+            [x0, y0, z0],
+            [x1, y0, z0],
+            [x1, y1, z0],
+            [x0, y1, z0],
+            [x0, y0, z1],
+            [x1, y0, z1],
+            [x1, y1, z1],
+            [x0, y1, z1],
+        ]
     }
 
     /// Cut the box with a plane, returning the intersection points.
@@ -145,19 +161,7 @@ impl Extents3 {
     /// assert!(x.is_empty());
     /// ```
     pub fn cut(&self, plane: &Plane, tolerance: f64) -> Vec<Point3> {
-        let [x0, y0, z0] = self.origin;
-        let [x1, y1, z1] = self.max();
-        let corners = [
-            [x0, y0, z0],
-            [x1, y0, z0],
-            [x1, y1, z0],
-            [x0, y1, z0],
-            [x0, y0, z1],
-            [x1, y0, z1],
-            [x1, y1, z1],
-            [x0, y1, z1],
-        ];
-
+        let corners = self.corners();
         let corners_ = corners.map(|p| plane.lies(p, tolerance));
 
         let segments = [
@@ -236,7 +240,14 @@ impl FromIterator<Point2> for Extents2 {
     where
         T: IntoIterator<Item = Point2>,
     {
-        todo!()
+        let mut iter = iter.into_iter();
+        let Some(init) = iter.next() else { return Self::zero(); };
+
+        let (min, max) = iter.fold((init, init), |(min, max), p| {
+            (min.min_all(p), max.max_all(p))
+        });
+
+        Self::from_min_max(min, max)
     }
 }
 
