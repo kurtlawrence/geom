@@ -58,11 +58,7 @@ where
 
     pub fn intersects(self, other: Self) -> bool {
         let outside = self.max().into_iter().zip(other.origin).any(|(m, c)| m < c)
-            || self
-                .origin
-                .into_iter()
-                .zip(other.max())
-                .any(|(o, c)| o >= c);
+            || self.origin.into_iter().zip(other.max()).any(|(o, c)| o > c);
 
         !outside
     }
@@ -360,6 +356,33 @@ mod tests {
         }
 
         TestResult::from_bool(a.intersects(b) == a.intersection(b).is_some())
+    }
+
+    #[quickcheck]
+    fn intersects_commutative_e2(a: E, b: E) -> TestResult {
+        let Some(a) = to_e(a) else {
+            return TestResult::discard();
+        };
+        let Some(b) = to_e(b) else {
+            return TestResult::discard();
+        };
+
+        let a = Extents2::from(a);
+        let b = Extents2::from(b);
+
+        TestResult::from_bool(a.intersects(b) == b.intersects(a))
+    }
+
+    #[quickcheck]
+    fn intersects_commutative_e3(a: E, b: E) -> TestResult {
+        let Some(a) = to_e(a) else {
+            return TestResult::discard();
+        };
+        let Some(b) = to_e(b) else {
+            return TestResult::discard();
+        };
+
+        TestResult::from_bool(a.intersects(b) == b.intersects(a))
     }
 
     #[test]
