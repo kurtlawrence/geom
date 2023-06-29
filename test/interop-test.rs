@@ -930,3 +930,9 @@ fn should_be_one_polygon() {
 
     assert_eq!(polygon, expected);
 }
+
+#[test]
+#[ignore]
+fn imports_large1() {
+    trimesh::from_vulcan_00t(&read("ignored/large1.00t")).unwrap();
+}
