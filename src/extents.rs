@@ -58,13 +58,47 @@ where
 
     pub fn intersects(self, other: Self) -> bool {
         let outside = self.max().into_iter().zip(other.origin).any(|(m, c)| m < c)
-            || self
-                .origin
-                .into_iter()
-                .zip(other.max())
-                .any(|(o, c)| o >= c);
+            || self.origin.into_iter().zip(other.max()).any(|(o, c)| o > c);
 
         !outside
+    }
+
+    /// Expand the extents by a value.
+    ///
+    /// A negative value can be used to _shrink_ the extents.
+    /// Note that shrinking beyond `size / 2` will result in a [`Self::zero`].
+    /// `by` values that a non-finite are ignored and the original self is returned.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use geom::*;
+    /// let e = Extents2::from_min_max(Point2::zero(), Point2::one());
+    ///
+    /// assert_eq!(e.expand(0.5), Extents2 {
+    ///     origin: [-0.5, -0.5],
+    ///     size: [2.0, 2.0]
+    /// });
+    ///
+    /// assert_eq!(e.expand(-0.2), Extents2 {
+    ///     origin: [0.2, 0.2],
+    ///     size: [0.6, 0.6],
+    /// });
+    /// ```
+    pub fn expand(self, by: f64) -> Self {
+        if !by.is_finite() {
+            return self;
+        }
+
+        let x = P::all(by);
+
+        let size = self.size.add(x.scale(2.0));
+        if size.into_iter().any(|x| x < 0.0) {
+            return Self::zero();
+        }
+
+        let origin = self.origin.sub(x);
+
+        Self { origin, size }
     }
 }
 
@@ -362,6 +396,33 @@ mod tests {
         TestResult::from_bool(a.intersects(b) == a.intersection(b).is_some())
     }
 
+    #[quickcheck]
+    fn intersects_commutative_e2(a: E, b: E) -> TestResult {
+        let Some(a) = to_e(a) else {
+            return TestResult::discard();
+        };
+        let Some(b) = to_e(b) else {
+            return TestResult::discard();
+        };
+
+        let a = Extents2::from(a);
+        let b = Extents2::from(b);
+
+        TestResult::from_bool(a.intersects(b) == b.intersects(a))
+    }
+
+    #[quickcheck]
+    fn intersects_commutative_e3(a: E, b: E) -> TestResult {
+        let Some(a) = to_e(a) else {
+            return TestResult::discard();
+        };
+        let Some(b) = to_e(b) else {
+            return TestResult::discard();
+        };
+
+        TestResult::from_bool(a.intersects(b) == b.intersects(a))
+    }
+
     #[test]
     fn intersection_tests() {
         let a = Extents3::from_min_max([0.0; 3], [1.0; 3]);
@@ -413,5 +474,29 @@ mod tests {
 
         let x = aabb.cut(&plane, 1e-7);
         assert_eq!(x.len(), 0);
+    }
+
+    #[test]
+    fn expand_test() {
+        let e = Extents2::from_min_max(Point2::zero(), Point2::one());
+
+        assert_eq!(
+            e.expand(0.5),
+            Extents2 {
+                origin: [-0.5, -0.5],
+                size: [2.0, 2.0]
+            }
+        );
+
+        assert_eq!(
+            e.expand(-0.2),
+            Extents2 {
+                origin: [0.2, 0.2],
+                size: [0.6, 0.6],
+            }
+        );
+
+        assert_eq!(e.expand(-0.8), Extents2::zero());
+        assert_eq!(e.expand(f64::NAN), e);
     }
 }
