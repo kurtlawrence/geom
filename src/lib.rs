@@ -17,6 +17,7 @@ mod line;
 mod plane;
 mod point;
 pub mod polygon;
+mod polyline;
 mod trimesh;
 
 pub use extents::*;
@@ -25,6 +26,7 @@ pub use line::*;
 pub use plane::*;
 pub use point::*;
 pub use polygon::*;
+pub use polyline::*;
 pub use trimesh::*;
 
 pub trait Envelops<O> {

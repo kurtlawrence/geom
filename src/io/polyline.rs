@@ -24,3 +24,25 @@ where
 
     buf
 }
+
+pub fn from_dxf(dxf: &[u8]) -> Result<Vec<Polyline3>> {
+    let dxf =
+        ::dxf::Drawing::load(&mut Cursor::new(dxf)).map_err(|e| format!("{:?} ==> {}", e, e))?;
+
+    fn map_polyline<'a>(
+        vertices: impl Iterator<Item = &'a ::dxf::entities::Vertex>,
+    ) -> Option<Polyline3> {
+        Polyline3::new(vertices.into_iter().map(|v| from_dxf_point(&v.location))).ok()
+    }
+
+    Ok(dxf
+        .entities()
+        .into_iter()
+        .filter_map(|e| {
+            match &e.specific {
+                ::dxf::entities::EntityType::Polyline(p) => map_polyline(p.vertices()),
+                _ => None,
+            }
+        })
+        .collect())
+}
