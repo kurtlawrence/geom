@@ -259,7 +259,9 @@ impl FromIterator<Point3> for Extents3 {
         T: IntoIterator<Item = Point3>,
     {
         let mut iter = iter.into_iter();
-        let Some(init) = iter.next() else { return Self::zero(); };
+        let Some(init) = iter.next() else {
+            return Self::zero();
+        };
 
         let (min, max) = iter.fold((init, init), |(min, max), p| {
             (min.min_all(p), max.max_all(p))
@@ -275,7 +277,9 @@ impl FromIterator<Point2> for Extents2 {
         T: IntoIterator<Item = Point2>,
     {
         let mut iter = iter.into_iter();
-        let Some(init) = iter.next() else { return Self::zero(); };
+        let Some(init) = iter.next() else {
+            return Self::zero();
+        };
 
         let (min, max) = iter.fold((init, init), |(min, max), p| {
             (min.min_all(p), max.max_all(p))
